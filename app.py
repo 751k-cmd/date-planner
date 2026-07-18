@@ -79,11 +79,14 @@ if st.session_state["last_plan"]:
     url_pattern = r'(https://www\.google\.com/maps/dir/[^\s\)]+)'
     match = re.search(url_pattern, st.session_state["last_plan"])
     
-    # 2. 地図の表示
+    # 2. 地図の表示（URLを埋め込み用に変換）
     if match:
-        map_url = match.group(1)
+        original_url = match.group(1)
+        # dir/ を embed/ に置換し、さらに出力用のパラメータを追加
+        embed_url = original_url.replace('/dir/', '/maps/embed/v1/directions?key=YOUR_API_KEY&')
+        
         st.subheader("🗺️ デート動線マップ")
-        st.components.v1.iframe(map_url, width=800, height=500)
+        st.components.v1.iframe(embed_url, width=800, height=500)
     
     # 3. プラン詳細の表示
     with st.container(border=True):
