@@ -45,7 +45,11 @@ with st.expander("⚙️ こだわり設定（詳細）", expanded=False):
 def run_generation(refinement=None):
     with st.spinner("プランを構築中... 🪄"):
         base_info = f"場所:{area}, 天気:{weather}, 予算:{budget}, 関係性:{relationship}, 時間:{duration}, タイプ:{plan_type}, 興味:{interests}, 苦手:{dislikes}, 条件:{additional_notes}"
-        prompt = f"以下のプランを修正して: {refinement}\n\n【元プラン】\n{st.session_state['plan_data']}\n\n【条件】\n{base_info}" if refinement else f"プロのプランナーとして、以下の条件でデートプランを提案して。\n{base_info}\n\n【ルール】\n1. 時系列プランと移動手段の記載。\n2. 会話ネタを3つ提案。" + ("\n3. 最後に必ず1行で「ROUTE_LOCATIONS: スポットA, スポットB, スポットC」と出力すること。" if True else "")
+        
+        # 会話ネタのルールを条件に応じて動的に変更
+        conv_rule = "2. 会話ネタを3つ提案。" if include_conv else "2. 会話ネタは提案しないで。"
+        
+        prompt = f"以下のプランを修正して: {refinement}\n\n【元プラン】\n{st.session_state['plan_data']}\n\n【条件】\n{base_info}\n\n【ルール】\n1. 時系列プランと移動手段の記載。\n{conv_rule}\n3. 最後に必ず1行で「ROUTE_LOCATIONS: スポットA, スポットB, スポットC」と出力すること。" if refinement else f"プロのプランナーとして、以下の条件でデートプランを提案して。\n{base_info}\n\n【ルール】\n1. 時系列プランと移動手段の記載。\n{conv_rule}\n3. 最後に必ず1行で「ROUTE_LOCATIONS: スポットA, スポットB, スポットC」と出力すること。"
         
         response = model.generate_content(prompt)
         st.session_state["plan_data"] = response.text
@@ -57,7 +61,6 @@ def display_plan():
     if st.session_state["plan_data"]:
         if st.session_state.get("is_refinement"):
             st.success("プランを調整・生成しました！")
-            # JavaScriptで強制的にページトップへスクロール
             html("<script>window.scrollTo(0, 0);</script>")
         
         st.markdown("---")
