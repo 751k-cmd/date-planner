@@ -1,6 +1,5 @@
 import streamlit as st
 import google.generativeai as genai
-import streamlit.components.v1 as components
 
 # --- デザイン調整 ---
 st.set_page_config(page_title="AIデートプランナー", page_icon="💘", layout="wide")
@@ -30,49 +29,41 @@ with st.expander("⚙️ こだわり設定（詳細）"):
     relationship = st.selectbox("関係性", ["マッチング直後", "数回デート済み", "交際中", "特別な記念日"])
     duration = st.selectbox("所要時間", ["ランチのみ", "半日（4時間）", "夕方〜夜", "一日", "宿泊"])
     plan_type = st.radio("プランタイプ", ["王道", "穴場", "コスパ重視", "贅沢"], horizontal=True)
-    interests = st.text_input("興味のあること（例: カフェ巡り）")
-    dislikes = st.text_input("苦手なもの（例: 人混み）")
+    interests = st.text_input("興味のあること")
+    dislikes = st.text_input("苦手なもの")
     additional_notes = st.text_area("✍️ その他の予定・条件")
     include_conv = st.checkbox("会話ネタも提案してほしい", value=True)
 
-# --- 生成・修正の共通プロンプト作成関数 ---
-def get_prompt(base_plan, user_refinement=None):
-    if user_refinement:
-        return f"以下のプランを修正して: {user_refinement}\n\n【元プラン】\n{base_plan}"
-    
-    return f"""
+# --- 生成・修正のロジック ---
+def generate_plan(refinement=None):
+    prompt = f"""
     プロのデートプランナーとして、{relationship}の方との{weather}の日のデートプランを提案して。
     場所:{area}, 予算:{budget}, 所要時間:{duration}, タイプ:{plan_type}
     興味:{interests}, 苦手:{dislikes}, 条件:{additional_notes}
     
-    【出力ルール】
-    1. 時系列のプラン。
-    2. 各スポットのGoogleマップURL添付。
-    3. 移動時間・移動手段を考慮。
-    4. 最後に主要スポットを巡るGoogleマップ検索URL(https://www.google.com/maps/dir/...)を一つ提示。
-    5. 洗練されたトーンで。
-    {"6. 会話ネタを3つ。" if include_conv else ""}
+    【ルール】
+    1. 時系列プランと移動時間/手段の記載。
+    2. GoogleマップURLの添付。
+    3. 最後に主要スポットを巡るGoogleマップ検索URL(https://www.google.com/maps/dir/...)を一つ提示。
+    {"4. 会話ネタを3つ。" if include_conv else ""}
     """
-
-# --- ボタン処理 ---
-if st.button("プランを生成する") or st.button("この条件でプランを修正する"):
-    # 修正ボタンが押された場合のみ、追加のリクエストを考慮
-    refinement = st.session_state.get("refinement", "")
+    if refinement:
+        prompt = f"以下のプランを修正して: {refinement}\n\n【元プラン】\n{st.session_state['last_plan']}"
+    
     with st.spinner("プランを構築中... 🪄"):
-        prompt = get_prompt(st.session_state["last_plan"], refinement if "修正する" in st.button else None)
         response = model.generate_content(prompt)
         st.session_state["last_plan"] = response.text
 
-# --- 表示エリア ---
+# --- ボタン処理 ---
+if st.button("プランを生成する"):
+    generate_plan()
+
+# --- 共同編集エリア ---
 if st.session_state["last_plan"]:
     st.markdown("---")
     st.markdown(st.session_state["last_plan"])
     
-    # 地図の埋め込み（AIがdir/形式のURLを出力している前提）
-    st.subheader("🗺️ デート動線マップ")
-    st.info("※地図が表示されない場合は、AIが生成したテキスト内のGoogle Mapsリンクをご確認ください。")
-    # 簡易的にURLを抽出して表示するロジックが必要な場合はここに追加します
-    
-    st.markdown("---")
     st.subheader("🛠 プランの微調整")
-    st.session_state["refinement"] = st.text_input("調整したいポイント")
+    refinement = st.text_input("調整したいポイント")
+    if st.button("この条件でプランを修正する"):
+        generate_plan(refinement)
