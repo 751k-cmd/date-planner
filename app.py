@@ -1,5 +1,6 @@
 import streamlit as st
 import google.generativeai as genai
+import re
 
 # --- ページ設定 ---
 st.set_page_config(page_title="AIデートプランナー", page_icon="💘", layout="wide")
@@ -48,8 +49,9 @@ def generate_plan(refinement=None):
     
     【ルール】
     1. 時系列プランと移動時間/手段の記載。
-    2. GoogleマップURLの添付。
-    3. 最後に主要スポットを巡るGoogleマップ検索URL(https://www.google.com/maps/dir/...)を一つ提示。
+    2. 各スポットにGoogleマップURLを添付。
+    3. 最後に主要スポットを巡るGoogleマップ検索URLを1つ提示。
+    ※URLの形式は必ず https://www.google.com/maps/dir/ で始まるものにすること。
     {"4. 会話ネタを3つ。" if include_conv else ""}
     """
     if refinement:
@@ -73,11 +75,22 @@ if st.session_state["last_plan"]:
         st.success("プランを調整・生成しました！")
         st.session_state["plan_updated"] = False
     
+    # 1. GoogleマップのURLを正規表現で抽出
+    url_pattern = r'(https://www\.google\.com/maps/dir/[^\s\)]+)'
+    match = re.search(url_pattern, st.session_state["last_plan"])
+    
+    # 2. 地図の表示
+    if match:
+        map_url = match.group(1)
+        st.subheader("🗺️ デート動線マップ")
+        st.components.v1.iframe(map_url, width=800, height=500)
+    
+    # 3. プラン詳細の表示
     with st.container(border=True):
         st.markdown(st.session_state["last_plan"])
     
     st.subheader("🛠 プランの微調整")
-    refinement = st.text_input("調整したいポイント", placeholder="例：ランチをもっと軽めにして、カフェを美術館に変更して")
+    refinement = st.text_input("調整したいポイント", placeholder="例：ランチをもっと軽めにして")
     
     if st.button("この条件でプランを修正する"):
         generate_plan(refinement)
